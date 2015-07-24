@@ -107,4 +107,14 @@ RSpec.describe GroupEvent, type: :model do
     expect(GroupEvent.published.count).to eq 20
     expect(GroupEvent.drafts.count).to eq 0
   end
+
+  it "will test group events destroy" do
+    2.times { GroupEvent.create :name => "Test Event" }
+    group_event = GroupEvent.last
+    expect(GroupEvent.count).to eq 2
+    group_event.destroy # Soft delete
+    expect(GroupEvent.count).to eq 1
+    group_event.restore # Restore
+    expect(GroupEvent.count).to eq 2
+  end
 end

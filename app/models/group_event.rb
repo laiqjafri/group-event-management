@@ -8,6 +8,8 @@ class GroupEvent < ActiveRecord::Base
 
   before_validation :set_duration, :if => Proc.new { |group_event| group_event.start_date.present? }
 
+  acts_as_paranoid
+
   def set_duration
     return unless [self.end_date?, self.duration].any?
     if self.end_date.blank? and self.duration.present?

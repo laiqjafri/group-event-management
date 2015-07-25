@@ -44,6 +44,7 @@ group :development, :test do
 
   # RSpec
   gem 'rspec-rails'
+  gem 'fuubar'
 end
 
 gem "paranoia", "~> 2.0"

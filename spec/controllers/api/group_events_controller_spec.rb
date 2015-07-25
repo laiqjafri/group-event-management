@@ -9,107 +9,134 @@ RSpec.describe Api::GroupEventsController, type: :controller do
 
     # and
     # 10 drafts
-    10.times { GroupEvent.create name: 'Test Event' }
+    10.times { GroupEvent.create name: "Test Event", start_date: Date.today, end_date: Date.tomorrow, location: 'Barcelona, Spain', description: "This is a test description", is_published: false }
   end
 
-  it "will test GET api/group_events#index" do
-    get :index, format: 'json'
-    expect(assigns(:group_events).count).to eq 20
-    json = JSON.parse response.body
-    response_ids = json.collect{ |group_event| group_event["id"] }
-    database_ids = GroupEvent.all.collect(&:id)
-    expect(response_ids).to match_array(database_ids)
+  describe '#index' do
+    it 'assigns @group_events a list of group events' do
+      get :index, format: 'json'
+      expect(assigns(:group_events).count).to eq 20
+    end
   end
 
-  it "will test GET api/group_events#show with valid arguments" do
-    group_event = GroupEvent.first
-    get :show, id: group_event.id, format: 'json'
-    json = JSON.parse response.body
-    expect(json["id"]).to eq group_event.id
+  describe '#show' do
+    context 'with valid ID' do
+      it 'assigns @group_event' do
+        get :show, id: GroupEvent.first.id, format: 'json'
+        expect(assigns(:group_event)).to eq GroupEvent.first
+      end
+    end
+
+    context 'with fake ID' do
+      it 'should return not found' do
+        get :show, id: 'a fake ID', format: 'json'
+        expect(response).to have_http_status :not_found
+      end
+    end
   end
 
-  it "will test GET api/group_events#show with invalid arguments" do
-    get :show, id: 'a fake ID', format: 'json'
-    expect(response.body).to eq "null"
-    expect(response.status).to eq 404
+  describe '#create' do
+    context 'with valid arguments' do
+      it 'should add a new group event' do
+        expect {
+          post :create, group_event: { name: 'Another Test Event' }, format: 'json'
+        }.to change(GroupEvent, :count).to(21).from(20)
+      end
+    end
+
+    context 'with invalid arguments' do
+      it 'should return unprocessable_entity' do
+        post :create, group_event: { description: 'A test event' }, format: 'json'
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
   end
 
-  it "will test POST api/group_events#create with valid arguments" do
-    post :create, group_event: { name: 'Another Test Event' }, format: 'json'
-    expect(GroupEvent.count).to eq 21
-    expect(response.status).to eq 201
+  describe '#update' do
+    context 'with valid arguments' do
+      it 'should update the group event' do
+        group_event = GroupEvent.last
+        expect {
+          patch :update, id: group_event.id, group_event: { name: 'Updated name' }, format: 'json'
+          group_event.reload
+        }.to change(group_event, :name).to('Updated name').from('Test Event')
+      end
+    end
+
+    context 'with invalid arguments' do
+      it 'should raise NoMethodError' do
+        expect {
+          patch :update, id: 'dummy ID', group_event: { name: 'Updated name' }, format: 'json'
+        }.to raise_error NoMethodError
+      end
+    end
   end
 
-  it "will test POST api/group_events#create with invalid arguments" do
-    post :create, group_event: { description: 'A test event' }, format: 'json'
-    expect(GroupEvent.count).to eq 20
-    expect(response.status).to eq 422
+  describe '#destroy' do
+    context 'with valid arguments' do
+      it 'will destroy the group event' do
+        expect {
+          delete :destroy, id: GroupEvent.last.id, format: 'json'
+        }.to change(GroupEvent, :count).to(19).from(20)
+      end
+    end
+
+    context 'with invalid arguments' do
+      it 'will raise NoMethodError' do
+        expect {
+          delete :destroy, id: 'a fake ID', format: 'json'
+        }.to raise_error NoMethodError
+      end
+    end
   end
 
-  it "will test PATCH api/group_events#update with valid arguments" do
-    group_event = GroupEvent.last
-    patch :update, id: group_event.id, group_event: { name: 'Updated name' }, format: 'json'
-    group_event.reload
-    expect(group_event.name).to eq 'Updated name'
-    expect(response.status).to eq 200
+  describe '#publish' do
+    context 'with valid arguments' do
+      it 'should publish an event' do
+        expect {
+          post :publish, id: GroupEvent.drafts.last.id, format: 'json'
+        }.to change(GroupEvent.published, :count).to(11).from(10)
+      end
+    end
+
+    context 'with invalid arguments' do
+      it 'will raise NoMethodError' do
+        expect {
+          post :publish, id: 'a fake ID', format: 'json'
+        }.to raise_error NoMethodError
+      end
+    end
   end
 
-  it "will test PATCH api/group_events#update with invalid arguments" do
-    expect {
-      patch :update, id: 'dummy ID', group_event: { name: 'Updated name' }, format: 'json'
-    }.to raise_error NoMethodError
+  describe '#unpublish' do
+    context 'with valid arguments' do
+      it 'should unpublish an event' do
+        expect {
+          post :unpublish, id: GroupEvent.published.last.id, format: 'json'
+        }.to change(GroupEvent.published, :count).to(9).from(10)
+      end
+    end
+
+    context 'with invalid arguments' do
+      it 'will raise NoMethodError' do
+        expect {
+          post :unpublish, id: 'a fake ID', format: 'json'
+        }.to raise_error NoMethodError
+      end
+    end
   end
 
-  it "will test DELETE api/group_events#destroy with valid arguments" do
-    group_event = GroupEvent.last
-    delete :destroy, id: group_event.id, format: 'json'
-    expect(response.status).to eq 204
-    expect(GroupEvent.count).to eq 19
+  describe '#published' do
+    it "will assig all published events to @group_events" do
+      get :published, format: 'json'
+      expect(assigns(:group_events)).to match_array(GroupEvent.published)
+    end
   end
 
-  it "will test DELETE api/group_events#destroy with invalid arguments" do
-    expect {
-      delete :destroy, id: 'A fake ID', format: 'json'
-    }.to raise_error NoMethodError
-    expect(GroupEvent.count).to eq 20
-  end
-
-  it "will test POST api/group_events#publish with valid arguments" do
-    group_event = GroupEvent.drafts.last
-    group_event.update_attributes name: "Test Event", start_date: Date.today, end_date: Date.tomorrow, location: 'Barcelona, Spain', description: "This is a test description"
-    post :publish, id: group_event.id, format: 'json'
-    expect(GroupEvent.published).to include(group_event)
-    expect(response.status).to eq 200
-  end
-
-  it "will test POST api/group_events#publish with invalid arguments" do
-    expect {
-      post :publish, id: 'A fake ID', format: 'json'
-    }.to raise_error NoMethodError
-  end
-
-  it "will test POST api/group_events#unpublish with valid arguments" do
-    group_event = GroupEvent.published.last
-    post :unpublish, id: group_event.id, format: 'json'
-    expect(GroupEvent.drafts).to include(group_event)
-    expect(response.status).to eq 200
-  end
-
-  it "will test POST api/group_events#unpublish with invalid arguments" do
-    expect {
-      post :unpublish, id: 'A fake ID', format: 'json'
-    }.to raise_error NoMethodError
-  end
-
-  it "will test GET api/group_events#published" do
-    get :published, format: 'json'
-    expect(assigns(:group_events).count).to eq 10
-    expect(assigns(:group_events)).to match_array(GroupEvent.published)
-  end
-
-  it "will test GET api/group_events#drafts" do
-    get :drafts, format: 'json'
-    expect(assigns(:group_events).count).to eq 10
-    expect(assigns(:group_events)).to match_array(GroupEvent.drafts)
+  describe '#drafts' do
+    it "will assign all drafts to @group_events" do
+      get :drafts, format: 'json'
+      expect(assigns(:group_events)).to match_array(GroupEvent.drafts)
+    end
   end
 end
